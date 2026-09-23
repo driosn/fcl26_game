@@ -91,6 +91,43 @@ void main() {
       expect(pad.drainActions(), contains(GameAction.pauseToggle));
     });
 
+    test('Steam Deck raw axes 2/3 aim', () {
+      final pad = source();
+      pad.applyRawEvent(
+        GamepadEvent(
+          gamepadId: 'deck',
+          timestamp: 0,
+          type: KeyType.analog,
+          key: '2',
+          value: 1,
+          vendorId: 0x28de,
+          productId: 0x1205,
+        ),
+      );
+      pad.applyRawEvent(
+        GamepadEvent(
+          gamepadId: 'deck',
+          timestamp: 1,
+          type: KeyType.analog,
+          key: '3',
+          value: -1,
+          vendorId: 0x28de,
+          productId: 0x1205,
+        ),
+      );
+      final state = _poll(pad);
+      expect(state.aimDirection.x, greaterThan(0.5));
+      expect(state.aimDirection.y, lessThan(-0.5));
+    });
+
+    test('pointer motion aims when Steam remaps the right stick', () {
+      final pad = source();
+      pad.applyPointerAim(dx: 40, dy: -40);
+      final state = _poll(pad);
+      expect(state.aimDirection.x, greaterThan(0));
+      expect(state.aimDirection.y, lessThan(0));
+    });
+
     test('D-pad edges walk the menu', () {
       final pad = source();
       pad.setButton(GamepadButton.dpadRight, true);

@@ -36,8 +36,17 @@ class GamepadInputSource implements InputSource {
   final ValueNotifier<bool> connected;
 
   StreamSubscription<NormalizedGamepadEvent>? _subscription;
+  StreamSubscription<GamepadEvent>? _rawSubscription;
   StreamSubscription<GamepadConnectionEvent>? _connectedSub;
   StreamSubscription<GamepadConnectionEvent>? _disconnectedSub;
+
+  int? _vendorId;
+  int? _productId;
+  bool _axis2IsStick = false;
+  double? _axis2Rest;
+
+  double _pointerX = 0;
+  double _pointerY = 0;
 
   double _leftX = 0;
   double _leftY = 0;
@@ -184,8 +193,14 @@ class GamepadInputSource implements InputSource {
     }
 
     final aim = _stickToScreen(_rightX, _rightY);
+    final pointerAim = _stickToScreen(_pointerX, _pointerY);
+    _pointerX = 0;
+    _pointerY = 0;
     if (aim != null) {
       state.aimDirection.add(aim);
+      state.noteDevice(InputDeviceKind.gamepad);
+    } else if (pointerAim != null) {
+      state.aimDirection.add(pointerAim);
       state.noteDevice(InputDeviceKind.gamepad);
     }
   }
@@ -200,12 +215,44 @@ class GamepadInputSource implements InputSource {
     return drained;
   }
 
+  /// Steam Input sometimes turns the right stick into mouse motion.
+  void applyPointerAim({required double dx, required double dy}) {
+    const scale = 0.12;
+    _pointerX = (dx * scale).clamp(-1.0, 1.0);
+    _pointerY = (-dy * scale).clamp(-1.0, 1.0);
+    if (!connected.value &&
+        (_pointerX.abs() > 0.01 || _pointerY.abs() > 0.01)) {
+      connected.value = true;
+    }
+  }
+
+  /// Raw Linux js / evdev event. Used when the normalizer drops Deck axes.
+  void applyRawEvent(GamepadEvent event) {
+    _vendorId ??= event.vendorId;
+    _productId ??= event.productId;
+    if (event.type == KeyType.analog) {
+      final axis = int.tryParse(event.key);
+      if (axis == null) {
+        return;
+      }
+      _applyRawAxis(axis, event.value);
+      _collectEdges();
+      return;
+    }
+    if (event.type == KeyType.button) {
+      _applyRawButton(event.key, event.value != 0);
+      _collectEdges();
+    }
+  }
+
   @override
   void dispose() {
     _subscription?.cancel();
+    _rawSubscription?.cancel();
     _connectedSub?.cancel();
     _disconnectedSub?.cancel();
     _subscription = null;
+    _rawSubscription = null;
     _connectedSub = null;
     _disconnectedSub = null;
     _pendingActions.clear();
@@ -227,9 +274,96 @@ class GamepadInputSource implements InputSource {
         }
         applyEvent(event);
       });
+      _rawSubscription = Gamepads.events.listen((event) {
+        if (!connected.value) {
+          connected.value = true;
+        }
+        applyRawEvent(event);
+      });
     } on Object {
       // Headless tests and a missing plugin must not take the game down.
     }
+  }
+
+  void _applyRawAxis(int axis, double raw) {
+    final stick = _normalizeRawStick(raw);
+    switch (axis) {
+      case 2:
+        _learnAxis2(stick);
+        if (_useSdlRightStick) {
+          _rightX = stick;
+        }
+      case 3:
+        if (_useSdlRightStick) {
+          _rightY = -stick;
+        } else {
+          _rightX = stick;
+        }
+      case 4:
+        if (!_useSdlRightStick) {
+          _rightY = -stick;
+        }
+      case 5:
+        if (!_useSdlRightStick) {
+          _rightTrigger = _normalizeRawTrigger(raw);
+        }
+      case 8:
+        _rightTrigger = _normalizeRawTrigger(raw);
+      default:
+        break;
+    }
+  }
+
+  void _applyRawButton(String key, bool pressed) {
+    final index = int.tryParse(key);
+    if (index == null) {
+      return;
+    }
+    // Xbox js: A=0, Start=7. Deck native: A=3, Start=12.
+    if (index == 0 || index == 3) {
+      _a = pressed;
+    }
+    if (index == 7 || index == 12) {
+      _start = pressed;
+    }
+  }
+
+  void _learnAxis2(double stick) {
+    _axis2Rest ??= stick;
+    if (_axis2Rest!.abs() < 0.3) {
+      _axis2IsStick = true;
+    }
+  }
+
+  /// Deck native (and some Valve pads) put the right stick on axes 2/3.
+  /// Xbox / Steam Virtual use 3/4; axis 2 is the left trigger there.
+  bool get _useSdlRightStick {
+    if (_axis2IsStick) {
+      return true;
+    }
+    final vendor = _vendorId;
+    final product = _productId;
+    if (vendor == 0x28de && (product == 0x1205 || product == 0x0512)) {
+      return true;
+    }
+    return false;
+  }
+
+  double _normalizeRawStick(double raw) {
+    if (raw.abs() > 1.5) {
+      return (raw / 32767.0).clamp(-1.0, 1.0);
+    }
+    return raw.clamp(-1.0, 1.0);
+  }
+
+  double _normalizeRawTrigger(double raw) {
+    if (raw.abs() > 1.5) {
+      return ((raw + 32768) / 65535).clamp(0.0, 1.0);
+    }
+    if (raw < 0) {
+      return ((raw + 1) / 2).clamp(0.0, 1.0);
+    }
+    return raw.clamp(0.0, 1.0);
   }
 
   Future<void> _refreshConnected() async {

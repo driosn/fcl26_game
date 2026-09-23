@@ -123,6 +123,14 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
           // the game, so focus can never be lost in a way the player cannot
           // recover from.
           onPointerDown: (_) => _claimFocus(),
+          onPointerMove: (event) {
+            if (_game.gamepadSource.connected.value && _game.state.isPlaying) {
+              _game.gamepadSource.applyPointerAim(
+                dx: event.delta.dx,
+                dy: event.delta.dy,
+              );
+            }
+          },
           child: Focus(
             autofocus: true,
             skipTraversal: true,

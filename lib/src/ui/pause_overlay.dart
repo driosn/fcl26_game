@@ -34,13 +34,18 @@ class PauseOverlay extends StatelessWidget {
         valueListenable: game.menuNav.index,
         builder: (context, index, _) {
           final label = actions[index.clamp(0, actions.length - 1)].label;
-          return ValueListenableBuilder<InputDeviceKind>(
-            valueListenable: game.inputState.lastDevice,
-            builder: (context, device, _) => PromptLine.forId(
-              device: device,
-              id: PromptId.confirm,
-              label: label,
-            ),
+          return ValueListenableBuilder<bool>(
+            valueListenable: game.gamepadSource.connected,
+            builder: (context, pad, _) {
+              return ValueListenableBuilder<InputDeviceKind>(
+                valueListenable: game.inputState.lastDevice,
+                builder: (context, last, _) => PromptLine.forId(
+                  device: promptDevice(lastDevice: last, gamepadConnected: pad),
+                  id: PromptId.confirm,
+                  label: label,
+                ),
+              );
+            },
           );
         },
       ),

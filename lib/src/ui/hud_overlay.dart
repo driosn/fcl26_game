@@ -313,47 +313,56 @@ class _ControlsHint extends StatelessWidget {
         return AnimatedOpacity(
           opacity: seconds < _fadeAfterSeconds ? 1 : 0,
           duration: const Duration(milliseconds: 700),
-          child: ValueListenableBuilder<InputDeviceKind>(
-            valueListenable: game.inputState.lastDevice,
-            builder: (context, device, _) {
-              return FittedBox(
-                fit: BoxFit.scaleDown,
-                child: GamePanel(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      PromptLine.forId(
-                        device: device,
-                        id: PromptId.move,
-                        label: 'Mover',
+          child: ValueListenableBuilder<bool>(
+            valueListenable: game.gamepadSource.connected,
+            builder: (context, pad, _) {
+              return ValueListenableBuilder<InputDeviceKind>(
+                valueListenable: game.inputState.lastDevice,
+                builder: (context, lastDevice, _) {
+                  final device = promptDevice(
+                    lastDevice: lastDevice,
+                    gamepadConnected: pad,
+                  );
+                  return FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: GamePanel(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
                       ),
-                      if (device == InputDeviceKind.gamepad) ...[
-                        const SizedBox(width: 16),
-                        PromptLine.forId(
-                          device: device,
-                          id: PromptId.aim,
-                          label: 'Apuntar',
-                        ),
-                      ],
-                      const SizedBox(width: 16),
-                      PromptLine.forId(
-                        device: device,
-                        id: PromptId.dash,
-                        label: 'Dash',
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          PromptLine.forId(
+                            device: device,
+                            id: PromptId.move,
+                            label: 'Mover',
+                          ),
+                          if (device == InputDeviceKind.gamepad) ...[
+                            const SizedBox(width: 16),
+                            PromptLine.forId(
+                              device: device,
+                              id: PromptId.aim,
+                              label: 'Apuntar',
+                            ),
+                          ],
+                          const SizedBox(width: 16),
+                          PromptLine.forId(
+                            device: device,
+                            id: PromptId.dash,
+                            label: 'Dash',
+                          ),
+                          const SizedBox(width: 16),
+                          PromptLine.forId(
+                            device: device,
+                            id: PromptId.pause,
+                            label: 'Pausa',
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 16),
-                      PromptLine.forId(
-                        device: device,
-                        id: PromptId.pause,
-                        label: 'Pausa',
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
+                  );
+                },
               );
             },
           ),

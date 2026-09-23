@@ -77,6 +77,16 @@ void main() {
       expect(find.text('R2'), findsOneWidget);
     });
 
+    testWidgets('shows Deck glyphs when a pad is connected', (tester) async {
+      final game = await _pumpHud(tester);
+      game.gamepadSource.connected.value = true;
+      await tester.pump();
+      expect(find.text('WASD'), findsNothing);
+      expect(find.text('ESC'), findsNothing);
+      expect(find.text('Apuntar'), findsOneWidget);
+      expect(find.text('R2'), findsOneWidget);
+    });
+
     testWidgets('draws the Dash portrait as the health tank', (tester) async {
       await _pumpHud(tester);
       expect(find.byType(DashPortrait), findsOneWidget);

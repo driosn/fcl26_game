@@ -125,6 +125,9 @@ class FCLGame extends FlameGame with HasCollisionDetection, KeyboardEvents {
     for (final source in _inputSources) {
       source.poll(inputState);
     }
+    if (gamepadSource.connected.value) {
+      inputState.noteDevice(InputDeviceKind.gamepad);
+    }
     inputState.endFrame();
     _drainActions();
 
