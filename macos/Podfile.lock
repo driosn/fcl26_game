@@ -1,0 +1,29 @@
+PODS:
+  - FlutterMacOS (1.0.0)
+  - gamepads_darwin (0.1.1):
+    - Flutter
+    - FlutterMacOS
+  - rive_native (0.0.1):
+    - FlutterMacOS
+
+DEPENDENCIES:
+  - FlutterMacOS (from `Flutter/ephemeral`)
+  - gamepads_darwin (from `Flutter/ephemeral/.symlinks/plugins/gamepads_darwin/darwin`)
+  - rive_native (from `Flutter/ephemeral/.symlinks/plugins/rive_native/macos`)
+
+EXTERNAL SOURCES:
+  FlutterMacOS:
+    :path: Flutter/ephemeral
+  gamepads_darwin:
+    :path: Flutter/ephemeral/.symlinks/plugins/gamepads_darwin/darwin
+  rive_native:
+    :path: Flutter/ephemeral/.symlinks/plugins/rive_native/macos
+
+SPEC CHECKSUMS:
+  FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
+  gamepads_darwin: 7a021dc1aece71b59fae638865287e8e2d89a56a
+  rive_native: 50e8013d024db2bc4ce3a39b5f0f38c74117b395
+
+PODFILE CHECKSUM: 54d867c82ac51cbd61b565781b9fada492027009
+
+COCOAPODS: 1.16.2

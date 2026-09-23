@@ -1,0 +1,12 @@
+name: dashrambo
+main: DashRambo
+
+# Straight into the Flutter asset tree. The default (build/) is gitignored, so a
+# .riv left there would be missing from every clean clone and CI run while
+# pubspec.yaml still declared it.
+output:
+  dir: ../assets/rive
+
+logs:
+  file: build/rive.log
+  problems: build/problems.log
