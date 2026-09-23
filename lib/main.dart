@@ -104,6 +104,16 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     }
   }
 
+  void _aimFromPointer(Offset local) {
+    if (!_game.state.isPlaying) {
+      return;
+    }
+    if (_game.gamepadSource.connected.value) {
+      return;
+    }
+    _game.aimFromWidgetPosition(local);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -122,14 +132,20 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
           // The escape hatch: clicking anywhere hands keyboard control back to
           // the game, so focus can never be lost in a way the player cannot
           // recover from.
-          onPointerDown: (_) => _claimFocus(),
+          onPointerDown: (event) {
+            _claimFocus();
+            _aimFromPointer(event.localPosition);
+          },
+          onPointerHover: (event) => _aimFromPointer(event.localPosition),
           onPointerMove: (event) {
             if (_game.gamepadSource.connected.value && _game.state.isPlaying) {
               _game.gamepadSource.applyPointerAim(
                 dx: event.delta.dx,
                 dy: event.delta.dy,
               );
+              return;
             }
+            _aimFromPointer(event.localPosition);
           },
           child: Focus(
             autofocus: true,

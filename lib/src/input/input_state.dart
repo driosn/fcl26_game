@@ -1,8 +1,7 @@
-import 'dart:io';
-
 import 'package:flame/components.dart';
 import 'package:flutter/foundation.dart';
 
+import '../platform/host.dart';
 import 'input_device.dart';
 
 /// Continuous input intent for the current frame.
@@ -24,6 +23,13 @@ class InputState {
 
   /// Last device that contributed movement, aim, or an action.
   final ValueNotifier<InputDeviceKind> lastDevice;
+
+  /// Latest cursor position in world space. Sticky until the next move.
+  Vector2? pointerWorld;
+
+  void setPointerWorld(Vector2 world) {
+    pointerWorld = Vector2.copy(world);
+  }
 
   void noteDevice(InputDeviceKind kind) {
     if (lastDevice.value != kind) {
@@ -52,16 +58,10 @@ class InputState {
   /// SteamOS Gaming Mode sets `SteamDeck=1`. Elsewhere we start on keyboard
   /// prompts until a pad actually speaks.
   static InputDeviceKind defaultInputDevice() {
-    if (kIsWeb) {
-      return InputDeviceKind.keyboard;
-    }
-    try {
-      final env = Platform.environment;
-      if (env['SteamDeck'] == '1' || env['DASH_RAMBO_FULLSCREEN'] == '1') {
-        return InputDeviceKind.gamepad;
-      }
-    } on Object {
-      return InputDeviceKind.keyboard;
+    final deck = hostEnv('SteamDeck');
+    final fullscreen = hostEnv('DASH_RAMBO_FULLSCREEN');
+    if (deck == '1' || fullscreen == '1') {
+      return InputDeviceKind.gamepad;
     }
     return InputDeviceKind.keyboard;
   }

@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flame/components.dart';
@@ -23,6 +22,7 @@ import '../render/shape_skin.dart';
 import '../systems/enemy_spawner.dart';
 import '../systems/power_up_spawner.dart';
 import '../theme/game_palette.dart';
+import '../platform/host.dart';
 import '../ui/menu_nav.dart';
 import 'game_config.dart';
 import 'game_state.dart';
@@ -128,6 +128,7 @@ class FCLGame extends FlameGame with HasCollisionDetection, KeyboardEvents {
     if (gamepadSource.connected.value) {
       inputState.noteDevice(InputDeviceKind.gamepad);
     }
+    _applyPointerWorldAim();
     inputState.endFrame();
     _drainActions();
 
@@ -180,12 +181,36 @@ class FCLGame extends FlameGame with HasCollisionDetection, KeyboardEvents {
   void quit() => onQuit();
 
   /// Desktop / Deck: the window must actually close. `SystemNavigator.pop`
-  /// does not.
-  static void quitProcess() {
-    if (kIsWeb) {
+  /// does not. On web this is a no-op — the tab stays open.
+  static void quitProcess() => exitApp();
+
+  /// Keyboard / mouse: aim at the cursor. Ignored while a pad is driving.
+  void aimFromWidgetPosition(Offset local) {
+    if (!isLoaded) {
       return;
     }
-    exit(0);
+    inputState.setPointerWorld(
+      camera.globalToLocal(Vector2(local.dx, local.dy)),
+    );
+  }
+
+  void _applyPointerWorldAim() {
+    if (gamepadSource.connected.value) {
+      return;
+    }
+    final world = inputState.pointerWorld;
+    final player = _player;
+    if (world == null || player == null) {
+      return;
+    }
+    final dir = world - player.position;
+    if (dir.length2 < 1) {
+      return;
+    }
+    inputState.aimDirection
+      ..setFrom(dir)
+      ..normalize();
+    inputState.noteDevice(InputDeviceKind.keyboard);
   }
 
   void _startRun() {

@@ -194,6 +194,19 @@ void main() {
       },
     );
 
+    testWithGame<FCLGame>('the mouse aims independently of WASD', _newGame, (
+      game,
+    ) async {
+      game.gamepadSource.connected.value = false;
+      final player = game.player!;
+      game.inputState.setPointerWorld(player.position + Vector2(0, 200));
+      for (var i = 0; i < 45; i++) {
+        game.update(1 / 60);
+      }
+      expect(player.facing.x.abs(), lessThan(0.25));
+      expect(player.facing.y, closeTo(1, 0.25));
+    });
+
     testWithGame<
       FCLGame
     >('flip flopping direction fires diagonally', _newGame, (game) async {

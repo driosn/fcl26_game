@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flame/components.dart';
 import 'package:flutter/foundation.dart';
 import 'package:gamepads/gamepads.dart';
 
 import '../game/game_config.dart';
+import '../platform/host.dart';
 import 'input_device.dart';
 import 'input_source.dart';
 import 'input_state.dart';
@@ -460,15 +460,8 @@ class GamepadInputSource implements InputSource {
 
   /// Gaming Mode always has the built-in pad, even before the plugin lists it.
   static bool assumeGamepadConnected() {
-    if (kIsWeb) {
-      return false;
-    }
-    try {
-      final env = Platform.environment;
-      return env['SteamDeck'] == '1' || env['DASH_RAMBO_FULLSCREEN'] == '1';
-    } on Object {
-      return false;
-    }
+    return hostEnv('SteamDeck') == '1' ||
+        hostEnv('DASH_RAMBO_FULLSCREEN') == '1';
   }
 
   /// Stick space is up = +Y. The playfield is up = -Y. Values inside the
