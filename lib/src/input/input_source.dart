@@ -1,7 +1,7 @@
 import 'input_state.dart';
 
 /// One-shot commands, as opposed to the continuous intent in [InputState].
-enum GameAction { pauseToggle, confirm, dash, menuPrev, menuNext }
+enum GameAction { pauseToggle, confirm, dash, menuPrev, menuNext, quit }
 
 /// A device that can drive the game.
 ///

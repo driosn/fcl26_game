@@ -44,6 +44,9 @@ class GamepadInputSource implements InputSource {
   int? _productId;
   bool _axis2IsStick = false;
   double? _axis2Rest;
+  double _raw2 = 0;
+  double _raw3 = 0;
+  double _raw4 = 0;
 
   double _pointerX = 0;
   double _pointerY = 0;
@@ -55,6 +58,7 @@ class GamepadInputSource implements InputSource {
   double _rightTrigger = 0;
 
   bool _a = false;
+  bool _b = false;
   bool _start = false;
   bool _dpadUp = false;
   bool _dpadDown = false;
@@ -62,6 +66,7 @@ class GamepadInputSource implements InputSource {
   bool _dpadRight = false;
 
   bool _wasA = false;
+  bool _wasB = false;
   bool _wasStart = false;
   bool _wasRightTrigger = false;
   bool _wasDpadUp = false;
@@ -83,6 +88,10 @@ class GamepadInputSource implements InputSource {
       switch (button) {
         case GamepadButton.a:
           _a = pressed;
+        case GamepadButton.b:
+          _b = pressed;
+        case GamepadButton.back:
+          _b = pressed;
         case GamepadButton.start:
           _start = pressed;
         case GamepadButton.dpadUp:
@@ -150,6 +159,9 @@ class GamepadInputSource implements InputSource {
     switch (button) {
       case GamepadButton.a:
         _a = pressed;
+      case GamepadButton.b:
+      case GamepadButton.back:
+        _b = pressed;
       case GamepadButton.start:
         _start = pressed;
       case GamepadButton.dpadUp:
@@ -192,6 +204,7 @@ class GamepadInputSource implements InputSource {
       state.noteDevice(InputDeviceKind.gamepad);
     }
 
+    _publishRightFromRaw();
     final aim = _stickToScreen(_rightX, _rightY);
     final pointerAim = _stickToScreen(_pointerX, _pointerY);
     _pointerX = 0;
@@ -290,19 +303,11 @@ class GamepadInputSource implements InputSource {
     switch (axis) {
       case 2:
         _learnAxis2(stick);
-        if (_useSdlRightStick) {
-          _rightX = stick;
-        }
+        _raw2 = stick;
       case 3:
-        if (_useSdlRightStick) {
-          _rightY = -stick;
-        } else {
-          _rightX = stick;
-        }
+        _raw3 = stick;
       case 4:
-        if (!_useSdlRightStick) {
-          _rightY = -stick;
-        }
+        _raw4 = stick;
       case 5:
         if (!_useSdlRightStick) {
           _rightTrigger = _normalizeRawTrigger(raw);
@@ -323,9 +328,26 @@ class GamepadInputSource implements InputSource {
     if (index == 0 || index == 3) {
       _a = pressed;
     }
+    if (index == 1 || index == 4) {
+      _b = pressed;
+    }
+    if (index == 6) {
+      _b = pressed;
+    }
     if (index == 7 || index == 12) {
       _start = pressed;
     }
+  }
+
+  void _publishRightFromRaw() {
+    final chosen = _useSdlRightStick
+        ? Vector2(_raw2, -_raw3)
+        : Vector2(_raw3, -_raw4);
+    if (chosen.length < GameConfig.stickDeadzone) {
+      return;
+    }
+    _rightX = chosen.x;
+    _rightY = chosen.y;
   }
 
   void _learnAxis2(double stick) {
@@ -391,6 +413,10 @@ class GamepadInputSource implements InputSource {
         ..add(GameAction.confirm);
       queued = true;
     }
+    if (_b && !_wasB) {
+      _pendingActions.add(GameAction.quit);
+      queued = true;
+    }
     if (triggerDown && !_wasRightTrigger) {
       _pendingActions.add(GameAction.dash);
       queued = true;
@@ -416,6 +442,7 @@ class GamepadInputSource implements InputSource {
       queued = true;
     }
     _wasA = _a;
+    _wasB = _b;
     _wasRightTrigger = triggerDown;
     _wasStart = _start;
     _wasDpadLeft = _dpadLeft;
@@ -437,7 +464,8 @@ class GamepadInputSource implements InputSource {
       return false;
     }
     try {
-      return Platform.environment['SteamDeck'] == '1';
+      final env = Platform.environment;
+      return env['SteamDeck'] == '1' || env['DASH_RAMBO_FULLSCREEN'] == '1';
     } on Object {
       return false;
     }

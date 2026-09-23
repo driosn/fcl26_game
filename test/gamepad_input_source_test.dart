@@ -85,6 +85,12 @@ void main() {
       expect(pad.drainActions(), isEmpty);
     });
 
+    test('B requests quit', () {
+      final pad = source();
+      pad.setButton(GamepadButton.b, true);
+      expect(pad.drainActions(), contains(GameAction.quit));
+    });
+
     test('Start toggles pause', () {
       final pad = source();
       pad.setButton(GamepadButton.start, true);

@@ -19,6 +19,7 @@ rm -rf "$dest"
 mkdir -p "$dest"
 cp -R "$root/build/linux/x64/release/bundle/." "$dest/"
 cp "$root/tool/dash-rambo.sh" "$dest/dash-rambo.sh"
+printf '1.0.1\n' > "$dest/BUILD.txt"
 chmod +x "$dest/dash-rambo.sh" "$dest/fcl_26_game"
 
 echo "Bundle: $dest"

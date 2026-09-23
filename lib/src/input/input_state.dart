@@ -56,7 +56,8 @@ class InputState {
       return InputDeviceKind.keyboard;
     }
     try {
-      if (Platform.environment['SteamDeck'] == '1') {
+      final env = Platform.environment;
+      if (env['SteamDeck'] == '1' || env['DASH_RAMBO_FULLSCREEN'] == '1') {
         return InputDeviceKind.gamepad;
       }
     } on Object {

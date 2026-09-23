@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../game/brotato_game.dart';
 import '../input/input_device.dart';
 import '../theme/game_palette.dart';
+import '../theme/game_typography.dart';
 import 'menu_panel.dart';
 import 'prompt_set.dart';
 import 'run_stats.dart';
@@ -29,7 +30,14 @@ class PauseOverlay extends StatelessWidget {
       game: game,
       title: 'Alto el Fuego',
       accent: GamePalette.accent,
-      details: MenuStats(entries: runStats(game.state)),
+      details: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MenuStats(entries: runStats(game.state)),
+          const SizedBox(height: 10),
+          Text('v1.0.1', style: GameTypography.label),
+        ],
+      ),
       hint: ValueListenableBuilder<int>(
         valueListenable: game.menuNav.index,
         builder: (context, index, _) {

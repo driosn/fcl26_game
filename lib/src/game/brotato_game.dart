@@ -251,6 +251,10 @@ class FCLGame extends FlameGame with HasCollisionDetection, KeyboardEvents {
             if (!state.isPlaying) {
               menuNav.next();
             }
+          case GameAction.quit:
+            if (!state.isPlaying) {
+              quit();
+            }
         }
       }
     }
