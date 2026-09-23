@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flame/components.dart';
 import 'package:flutter/foundation.dart';
@@ -15,7 +16,8 @@ import 'input_state.dart';
 /// Analog state is sampled every [poll]; button actions fire on the rising
 /// edge so dash and pause still work while Flame's engine is paused.
 class GamepadInputSource implements InputSource {
-  GamepadInputSource({this.listenToHardware = true, this.onImmediateActions}) {
+  GamepadInputSource({this.listenToHardware = true, this.onImmediateActions})
+    : connected = ValueNotifier(assumeGamepadConnected()) {
     if (listenToHardware) {
       _bindHardware();
     }
@@ -28,7 +30,14 @@ class GamepadInputSource implements InputSource {
   /// handling in `onKeyEvent` (the update loop is frozen while paused).
   final VoidCallback? onImmediateActions;
 
+  /// A pad is plugged in (or this is Gaming Mode on the Deck).
+  ///
+  /// The shell hides the mouse while this is true so menus play like a console.
+  final ValueNotifier<bool> connected;
+
   StreamSubscription<NormalizedGamepadEvent>? _subscription;
+  StreamSubscription<GamepadConnectionEvent>? _connectedSub;
+  StreamSubscription<GamepadConnectionEvent>? _disconnectedSub;
 
   double _leftX = 0;
   double _leftY = 0;
@@ -46,6 +55,14 @@ class GamepadInputSource implements InputSource {
   bool _wasA = false;
   bool _wasStart = false;
   bool _wasRightTrigger = false;
+  bool _wasDpadUp = false;
+  bool _wasDpadDown = false;
+  bool _wasDpadLeft = false;
+  bool _wasDpadRight = false;
+  bool _wasStickLeft = false;
+  bool _wasStickRight = false;
+  bool _wasStickUp = false;
+  bool _wasStickDown = false;
 
   final Set<GameAction> _pendingActions = {};
 
@@ -186,20 +203,53 @@ class GamepadInputSource implements InputSource {
   @override
   void dispose() {
     _subscription?.cancel();
+    _connectedSub?.cancel();
+    _disconnectedSub?.cancel();
     _subscription = null;
+    _connectedSub = null;
+    _disconnectedSub = null;
     _pendingActions.clear();
+    connected.dispose();
   }
 
   void _bindHardware() {
     try {
-      _subscription = Gamepads.normalizedEvents.listen(applyEvent);
+      _refreshConnected();
+      _connectedSub = Gamepads.onConnected.listen((_) {
+        connected.value = true;
+      });
+      _disconnectedSub = Gamepads.onDisconnected.listen((_) {
+        _refreshConnected();
+      });
+      _subscription = Gamepads.normalizedEvents.listen((event) {
+        if (!connected.value) {
+          connected.value = true;
+        }
+        applyEvent(event);
+      });
     } on Object {
       // Headless tests and a missing plugin must not take the game down.
     }
   }
 
+  Future<void> _refreshConnected() async {
+    try {
+      final pads = await Gamepads.list();
+      connected.value = pads.isNotEmpty || assumeGamepadConnected();
+      for (final pad in pads) {
+        pad.dispose();
+      }
+    } on Object {
+      // Keep the last known value.
+    }
+  }
+
   void _collectEdges() {
     final triggerDown = _rightTrigger >= GameConfig.triggerThreshold;
+    final stickLeft = _leftX <= -GameConfig.stickDeadzone;
+    final stickRight = _leftX >= GameConfig.stickDeadzone;
+    final stickUp = _leftY >= GameConfig.stickDeadzone;
+    final stickDown = _leftY <= -GameConfig.stickDeadzone;
     var queued = false;
     if (_a && !_wasA) {
       _pendingActions
@@ -215,11 +265,47 @@ class GamepadInputSource implements InputSource {
       _pendingActions.add(GameAction.pauseToggle);
       queued = true;
     }
+    if ((_dpadLeft && !_wasDpadLeft) || (stickLeft && !_wasStickLeft)) {
+      _pendingActions.add(GameAction.menuPrev);
+      queued = true;
+    }
+    if ((_dpadRight && !_wasDpadRight) || (stickRight && !_wasStickRight)) {
+      _pendingActions.add(GameAction.menuNext);
+      queued = true;
+    }
+    if ((_dpadUp && !_wasDpadUp) || (stickUp && !_wasStickUp)) {
+      _pendingActions.add(GameAction.menuPrev);
+      queued = true;
+    }
+    if ((_dpadDown && !_wasDpadDown) || (stickDown && !_wasStickDown)) {
+      _pendingActions.add(GameAction.menuNext);
+      queued = true;
+    }
     _wasA = _a;
     _wasRightTrigger = triggerDown;
     _wasStart = _start;
+    _wasDpadLeft = _dpadLeft;
+    _wasDpadRight = _dpadRight;
+    _wasDpadUp = _dpadUp;
+    _wasDpadDown = _dpadDown;
+    _wasStickLeft = stickLeft;
+    _wasStickRight = stickRight;
+    _wasStickUp = stickUp;
+    _wasStickDown = stickDown;
     if (queued) {
       onImmediateActions?.call();
+    }
+  }
+
+  /// Gaming Mode always has the built-in pad, even before the plugin lists it.
+  static bool assumeGamepadConnected() {
+    if (kIsWeb) {
+      return false;
+    }
+    try {
+      return Platform.environment['SteamDeck'] == '1';
+    } on Object {
+      return false;
     }
   }
 

@@ -80,4 +80,68 @@ void main() {
     expect(focusNode.hasPrimaryFocus, isTrue);
     expect(game.paused, isFalse);
   });
+
+  testWidgets('Salir on pause calls onQuit and does not kill the test', (
+    tester,
+  ) async {
+    var quit = 0;
+    await tester.pumpWidget(
+      FclGameApp(enableRive: false, onQuit: () => quit++),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
+    final game = _gameWidget(tester).game!;
+
+    game.togglePause();
+    await tester.pump();
+
+    expect(find.text('Salir'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Salir'));
+    await tester.pump();
+    expect(quit, 1);
+  });
+
+  testWidgets('game over offers Reintentar and Salir', (tester) async {
+    var quit = 0;
+    await tester.pumpWidget(
+      FclGameApp(enableRive: false, onQuit: () => quit++),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
+    final game = _gameWidget(tester).game!;
+
+    game.onPlayerDied();
+    await tester.pump();
+
+    expect(find.widgetWithText(TextButton, 'Reintentar'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Salir'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Salir'));
+    await tester.pump();
+    expect(quit, 1);
+  });
+
+  testWidgets('D-pad moves the pause highlight and A activates it', (
+    tester,
+  ) async {
+    var quit = 0;
+    await tester.pumpWidget(
+      FclGameApp(enableRive: false, onQuit: () => quit++),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
+    final game = _gameWidget(tester).game!;
+
+    game.togglePause();
+    await tester.pump();
+    expect(game.menuNav.index.value, 0);
+
+    game.menuNav.next();
+    game.menuNav.next();
+    await tester.pump();
+    expect(game.menuNav.index.value, 2);
+
+    game.menuNav.activate();
+    await tester.pump();
+    expect(quit, 1);
+  });
 }

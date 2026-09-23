@@ -64,6 +64,13 @@ class KeyboardInputSource implements InputSource {
       if (_dash.contains(event.logicalKey)) {
         _pendingActions.add(GameAction.dash);
       }
+      if (_left.contains(event.logicalKey) || _up.contains(event.logicalKey)) {
+        _pendingActions.add(GameAction.menuPrev);
+      }
+      if (_right.contains(event.logicalKey) ||
+          _down.contains(event.logicalKey)) {
+        _pendingActions.add(GameAction.menuNext);
+      }
     }
     return _handledKeys.contains(event.logicalKey);
   }

@@ -15,26 +15,36 @@ class PauseOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final actions = [
+      MenuAction(
+        label: 'Continuar',
+        onPressed: game.togglePause,
+        primary: true,
+      ),
+      MenuAction(label: 'Reiniciar', onPressed: game.restart),
+      MenuAction(label: 'Salir', onPressed: game.quit),
+    ];
+
     return MenuPanel(
+      game: game,
       title: 'Alto el Fuego',
       accent: GamePalette.accent,
       details: MenuStats(entries: runStats(game.state)),
-      hint: ValueListenableBuilder<InputDeviceKind>(
-        valueListenable: game.inputState.lastDevice,
-        builder: (context, device, _) => PromptLine.forId(
-          device: device,
-          id: PromptId.confirm,
-          label: 'Continuar',
-        ),
+      hint: ValueListenableBuilder<int>(
+        valueListenable: game.menuNav.index,
+        builder: (context, index, _) {
+          final label = actions[index.clamp(0, actions.length - 1)].label;
+          return ValueListenableBuilder<InputDeviceKind>(
+            valueListenable: game.inputState.lastDevice,
+            builder: (context, device, _) => PromptLine.forId(
+              device: device,
+              id: PromptId.confirm,
+              label: label,
+            ),
+          );
+        },
       ),
-      actions: [
-        MenuAction(
-          label: 'Continuar',
-          onPressed: game.togglePause,
-          primary: true,
-        ),
-        MenuAction(label: 'Reiniciar', onPressed: game.restart),
-      ],
+      actions: actions,
     );
   }
 }

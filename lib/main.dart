@@ -14,12 +14,15 @@ void main() {
 }
 
 class FclGameApp extends StatelessWidget {
-  const FclGameApp({this.enableRive = true, super.key});
+  const FclGameApp({this.enableRive = true, this.onQuit, super.key});
 
   /// Widget tests turn this off: `rive_native` cannot load its dylib inside
   /// `flutter test`, and a failed init is reported as a test error even when
   /// we catch it.
   final bool enableRive;
+
+  /// Tests inject a no-op so Salir cannot kill the test process.
+  final VoidCallback? onQuit;
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +30,7 @@ class FclGameApp extends StatelessWidget {
       title: 'DASH RAMBO',
       debugShowCheckedModeBanner: false,
       theme: GameTheme.build(),
-      home: GameScreen(enableRive: enableRive),
+      home: GameScreen(enableRive: enableRive, onQuit: onQuit),
     );
   }
 }
@@ -37,9 +40,10 @@ class FclGameApp extends StatelessWidget {
 /// Which menu is visible is derived from [GameState.status] rather than pushed by
 /// the game, so the simulation has no dependency on the widget tree.
 class GameScreen extends StatefulWidget {
-  const GameScreen({this.enableRive = true, super.key});
+  const GameScreen({this.enableRive = true, this.onQuit, super.key});
 
   final bool enableRive;
+  final VoidCallback? onQuit;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -49,6 +53,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   late final FCLGame _game = FCLGame(
     enableRive: widget.enableRive,
     listenToGamepadHardware: widget.enableRive,
+    onQuit: widget.onQuit,
   );
 
   /// Owned here rather than left to `GameWidget`, because keyboard input depends
@@ -89,6 +94,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     // Safe here: the listening builders below are disposed before their parent.
     _game.state.dispose();
     _game.inputState.dispose();
+    _game.menuNav.dispose();
     super.dispose();
   }
 
@@ -102,33 +108,44 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: GamePalette.letterbox,
-      body: Listener(
-        // The escape hatch: clicking anywhere hands keyboard control back to the
-        // game, so focus can never be lost in a way the player cannot recover
-        // from.
-        onPointerDown: (_) => _claimFocus(),
-        child: Focus(
-          autofocus: true,
-          skipTraversal: true,
-          child: Stack(
-            children: [
-              GameWidget<FCLGame>(
-                game: _game,
-                focusNode: _gameFocus,
-                autofocus: true,
-              ),
-              // The HUD is purely informational, so it must never swallow input
-              // meant for the game.
-              IgnorePointer(child: HudOverlay(game: _game)),
-              ValueListenableBuilder<GameStatus>(
-                valueListenable: _game.state.status,
-                builder: (context, status, _) => switch (status) {
-                  GameStatus.playing => const SizedBox.shrink(),
-                  GameStatus.paused => PauseOverlay(game: _game),
-                  GameStatus.gameOver => GameOverOverlay(game: _game),
-                },
-              ),
-            ],
+      body: ValueListenableBuilder<bool>(
+        valueListenable: _game.gamepadSource.connected,
+        builder: (context, gamepad, child) {
+          return MouseRegion(
+            cursor: gamepad
+                ? SystemMouseCursors.none
+                : SystemMouseCursors.basic,
+            child: child,
+          );
+        },
+        child: Listener(
+          // The escape hatch: clicking anywhere hands keyboard control back to
+          // the game, so focus can never be lost in a way the player cannot
+          // recover from.
+          onPointerDown: (_) => _claimFocus(),
+          child: Focus(
+            autofocus: true,
+            skipTraversal: true,
+            child: Stack(
+              children: [
+                GameWidget<FCLGame>(
+                  game: _game,
+                  focusNode: _gameFocus,
+                  autofocus: true,
+                ),
+                // The HUD is purely informational, so it must never swallow
+                // input meant for the game.
+                IgnorePointer(child: HudOverlay(game: _game)),
+                ValueListenableBuilder<GameStatus>(
+                  valueListenable: _game.state.status,
+                  builder: (context, status, _) => switch (status) {
+                    GameStatus.playing => const SizedBox.shrink(),
+                    GameStatus.paused => PauseOverlay(game: _game),
+                    GameStatus.gameOver => GameOverOverlay(game: _game),
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),

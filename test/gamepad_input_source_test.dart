@@ -90,5 +90,14 @@ void main() {
       pad.setButton(GamepadButton.start, true);
       expect(pad.drainActions(), contains(GameAction.pauseToggle));
     });
+
+    test('D-pad edges walk the menu', () {
+      final pad = source();
+      pad.setButton(GamepadButton.dpadRight, true);
+      expect(pad.drainActions(), contains(GameAction.menuNext));
+      pad.setButton(GamepadButton.dpadRight, false);
+      pad.setButton(GamepadButton.dpadLeft, true);
+      expect(pad.drainActions(), contains(GameAction.menuPrev));
+    });
   });
 }

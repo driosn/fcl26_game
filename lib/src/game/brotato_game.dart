@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -21,6 +23,7 @@ import '../render/shape_skin.dart';
 import '../systems/enemy_spawner.dart';
 import '../systems/power_up_spawner.dart';
 import '../theme/game_palette.dart';
+import '../ui/menu_nav.dart';
 import 'game_config.dart';
 import 'game_state.dart';
 
@@ -35,8 +38,10 @@ class FCLGame extends FlameGame with HasCollisionDetection, KeyboardEvents {
     GameSkin? skin,
     this.enableRive = false,
     this.listenToGamepadHardware = true,
+    VoidCallback? onQuit,
   }) : _random = random ?? math.Random(),
        skin = skin ?? ShapeSkin(),
+       onQuit = onQuit ?? quitProcess,
        super(
          camera: CameraComponent.withFixedResolution(
            width: GameConfig.worldWidth,
@@ -70,8 +75,13 @@ class FCLGame extends FlameGame with HasCollisionDetection, KeyboardEvents {
   /// Off in unit tests so the gamepads plugin channel is never opened.
   final bool listenToGamepadHardware;
 
+  /// Leave the process. Tests inject a no-op so tapping Salir cannot kill
+  /// `flutter test`.
+  final VoidCallback onQuit;
+
   final GameState state = GameState();
   final InputState inputState = InputState();
+  final MenuNavController menuNav = MenuNavController();
   final KeyboardInputSource keyboardSource = KeyboardInputSource();
   late final GamepadInputSource gamepadSource;
   late final List<InputSource> _inputSources;
@@ -164,6 +174,17 @@ class FCLGame extends FlameGame with HasCollisionDetection, KeyboardEvents {
     }
   }
 
+  void quit() => onQuit();
+
+  /// Desktop / Deck: the window must actually close. `SystemNavigator.pop`
+  /// does not.
+  static void quitProcess() {
+    if (kIsWeb) {
+      return;
+    }
+    exit(0);
+  }
+
   void _startRun() {
     // Everything except the backdrop belongs to a single run.
     world.removeWhere((component) => component is! Arena);
@@ -216,13 +237,27 @@ class FCLGame extends FlameGame with HasCollisionDetection, KeyboardEvents {
           case GameAction.confirm:
             _confirm();
           case GameAction.dash:
-            _player?.tryDash();
+            if (state.isPlaying) {
+              _player?.tryDash();
+            }
+          case GameAction.menuPrev:
+            if (!state.isPlaying) {
+              menuNav.prev();
+            }
+          case GameAction.menuNext:
+            if (!state.isPlaying) {
+              menuNav.next();
+            }
         }
       }
     }
   }
 
   void _confirm() {
+    if (menuNav.hasActions) {
+      menuNav.activate();
+      return;
+    }
     switch (state.status.value) {
       case GameStatus.gameOver:
         restart();
@@ -238,6 +273,7 @@ class FCLGame extends FlameGame with HasCollisionDetection, KeyboardEvents {
     for (final source in _inputSources) {
       source.dispose();
     }
+    menuNav.dispose();
     super.onRemove();
   }
 }

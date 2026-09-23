@@ -15,21 +15,31 @@ class GameOverOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final actions = [
+      MenuAction(label: 'Reintentar', onPressed: game.restart, primary: true),
+      MenuAction(label: 'Salir', onPressed: game.quit),
+    ];
+
     return MenuPanel(
+      game: game,
       title: 'Misión Fallida',
       accent: GamePalette.danger,
       details: MenuStats(entries: runStats(game.state)),
-      hint: ValueListenableBuilder<InputDeviceKind>(
-        valueListenable: game.inputState.lastDevice,
-        builder: (context, device, _) => PromptLine.forId(
-          device: device,
-          id: PromptId.confirm,
-          label: 'Reintentar',
-        ),
+      hint: ValueListenableBuilder<int>(
+        valueListenable: game.menuNav.index,
+        builder: (context, index, _) {
+          final label = actions[index.clamp(0, actions.length - 1)].label;
+          return ValueListenableBuilder<InputDeviceKind>(
+            valueListenable: game.inputState.lastDevice,
+            builder: (context, device, _) => PromptLine.forId(
+              device: device,
+              id: PromptId.confirm,
+              label: label,
+            ),
+          );
+        },
       ),
-      actions: [
-        MenuAction(label: 'Reintentar', onPressed: game.restart, primary: true),
-      ],
+      actions: actions,
     );
   }
 }

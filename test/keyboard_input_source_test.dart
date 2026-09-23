@@ -150,6 +150,16 @@ void main() {
       expect(source.drainActions(), contains(GameAction.pauseToggle));
     });
 
+    test('arrows walk the menu', () {
+      final source = KeyboardInputSource(heldKeys: () => {});
+
+      _press(source, LogicalKeyboardKey.arrowRight);
+      expect(source.drainActions(), contains(GameAction.menuNext));
+
+      _press(source, LogicalKeyboardKey.arrowLeft);
+      expect(source.drainActions(), contains(GameAction.menuPrev));
+    });
+
     test('a key up does not trigger an action', () {
       final source = KeyboardInputSource(heldKeys: () => {});
       source.handleKeyEvent(
